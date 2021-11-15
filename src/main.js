@@ -91,11 +91,15 @@ const getElements = (path, layer) => {
       const extension = /\.[0-9a-zA-Z]+$/;
       const sublayer = !extension.test(i);
       const weight = getRarityWeight(i);
+      const save = /(-SAVE)/.test(i);
+      const multiply = /(-MULT)/.test(i);
       const clip = /(-CLIP)/.test(i); // bool if
       const blendMode = layer.blend != undefined ? layer.blend : "source-over";
       const opacity = layer.opacity != undefined ? layer.opacity : 1;
 
       const element = {
+        multiply,
+        save,
         clip,
         sublayer,
         weight,
@@ -213,7 +217,7 @@ const addMetadata = (_dna, _edition, _prefixData) => {
     date: dateTime,
     ...extraMetadata,
     attributes: cleanedAttrs,
-    compiler: "HashLips Art Engine - NFTChef fork",
+    compiler: "HashLips Art Engine - DPC fork",
   };
   metadataList.push(tempMetadata);
   attributesList = [];
@@ -287,7 +291,44 @@ const drawElement = (_renderObject) => {
         topLayerCanvas.toBuffer(`${outputJPEG ? "image/jpeg" : "image/png"}`)
       );
     }
-  } else {
+  } 
+  else if (_renderObject.layer.save)  {
+    debugLogs ? console.log(chalk.green("save handler")) : null;
+    //make a new context
+
+    const lowerLayerCanvas = createCanvas(format.width, format.height);
+    const lower = lowerLayerCanvas.getContext("2d");
+    // First draw the canvas and mask the helmet
+    // then draw the helmet on top
+    // then, continue to the next normal layer
+
+    lower.drawImage(lowerLayerCanvas, 0, 0, format.width, format.height);
+    lower.globalCompositeOperation = "source-over";
+    lower.drawImage(
+      _renderObject.loadedImage,
+      0,
+      0,
+      format.width,
+      format.height
+    );
+
+    ctx.drawImage(lowerLayerCanvas, 0, 0, format.width, format.height);
+    if (debugLogs) {
+      fs.writeFileSync(
+        `${buildDir}/images/_SavedImage_${_renderObject.layer.name}${
+          outputJPEG ? ".jpg" : ".png"
+        }`,
+        lowerLayerCanvas.toBuffer(`${outputJPEG ? "image/jpeg" : "image/png"}`)
+      );
+    }
+  }
+  else if (_renderObject.layer.multiply) {
+    debugLogs ? console.log(chalk.yellow("multiply")) : null;
+    ctx.globalCompositeOperation = "multiply";
+    ctx.globalAlpha = .5;
+    ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
+  }
+  else {
     ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
   }
   addAttributes(_renderObject);
