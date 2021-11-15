@@ -23,7 +23,7 @@ const hashImages = true;
 const layerConfigurations = [
    {
     growEditionSizeTo: 4,
-    namePrefix: "Clipp",
+    namePrefix: "Pirate",
     layersOrder: [
       { name: "Pupils" },
       { name: "Eyes" },
