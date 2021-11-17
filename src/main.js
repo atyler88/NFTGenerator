@@ -249,96 +249,58 @@ const loadLayerImg = async (_layer) => {
   });
 };
 
-const tempLayerCanvas = createCanvas(format.width, format.height);
-const temp = tempLayerCanvas.getContext("2d");
 
-const drawElement = (_renderObject) => {
+const drawElement = async (_renderObject) => {
+
   ctx.globalAlpha = _renderObject.layer.opacity;
   ctx.globalCompositeOperation = _renderObject.layer.blendMode;
 
-
-
-  if (_renderObject.layer.clip) {
-    debugLogs ? console.log(chalk.cyan("clip handler")) : null;
-    //make a new context
-    const topLayerCanvas = createCanvas(format.width, format.height);
-    const top = topLayerCanvas.getContext("2d");
-
-    const lowerLayerCanvas = createCanvas(format.width, format.height);
-    const lower = lowerLayerCanvas.getContext("2d");
-    // First draw the canvas and mask the helmet
-
-    // then draw the helmet on top
-    // then, continue to the next normal layer
-    // top.drawImage(canvas, 0, 0, format.width, format.height);
-    // top.globalCompositeOperation = "destination-in";
-    // top.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
-
-    // lower.drawImage(topLayerCanvas, 0, 0, format.width, format.height);
-    // lower.globalCompositeOperation = "destination-in";
-    // lower.drawImage(
-    //   _renderObject.loadedImage,
-    //   0,
-    //   0,
-    //   format.width,
-    //   format.height
-    // );
-
-    // lower.globalCompositeOperation = "source-in";
-    // lower.drawImage(topLayerCanvas, 0, 0, format.width, format.height);
-    // // use the clip image twice, once to 'draw in' and once again to draw over
-    // ctx.globalCompositeOperation = "copy";
-    // ctx.drawImage(lowerLayerCanvas, 0, 0, format.width, format.height);
-    temp.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
-    temp.globalCompositeOperation = "source-over";
-    temp.drawImage(
-      tempLayerCanvas.loadedImage,
-      0,
-      0,
-      format.width,
-      format.height
-    );
-    ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
-    if (debugLogs) {
-      fs.writeFileSync(
-        `${buildDir}/images/_ClippinImage_${_renderObject.layer.name}${
-          outputJPEG ? ".jpg" : ".png"
-        }`,
-        topLayerCanvas.toBuffer(`${outputJPEG ? "image/jpeg" : "image/png"}`)
-      );
-    }
-  }
-  else if (_renderObject.layer.save)  {
+  if (_renderObject.layer.save)  {
     debugLogs ? console.log(chalk.green("save handler")) : null;
 
+    //Create a new Context
+    const tempLayerCanvas = createCanvas(format.width, format.height);
+    const temp = tempLayerCanvas.getContext("2d");
+
     //Draw the new canvas
-    temp.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
     temp.globalCompositeOperation = "source-over";
-    temp.drawImage(
-      _renderObject.loadedImage,
-      0,
-      0,
-      format.width,
-      format.height
-    );
-    // ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
+    temp.drawImage( _renderObject.loadedImage, 0, 0, format.width, format.height);
+
+    //Save the image as _SavedImage_Face
     if (debugLogs) {
       fs.writeFileSync(
-        `${buildDir}/images/_SavedImage_${_renderObject.layer.name}${
+        `${buildDir}/images/_SavedImage_Face${
           outputJPEG ? ".jpg" : ".png"
         }`,
         tempLayerCanvas.toBuffer(`${outputJPEG ? "image/jpeg" : "image/png"}`)
       );
     }
-  }
-  else if (_renderObject.layer.multiply) {
+  } else if (_renderObject.layer.clip) {
+    debugLogs ? console.log(chalk.cyan("clip handler")) : null;
+
+    //Trying to turn the .png into an image for later use
+    let faceImage = await loadImage(`${buildDir}/images/_SavedImage_Face${
+      outputJPEG ? ".jpg" : ".png"
+    }`);
+
+    //Create a new Context
+    const tempLayerCanvas = createCanvas(format.width, format.height);
+    const temp = tempLayerCanvas.getContext("2d");
+ 
+    //Draw the new canvas
+    temp.globalCompositeOperation = "source-over";
+    temp.drawImage(faceImage, 0, 0, format.width, format.height);
+    
+    ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
+
+  } else if (_renderObject.layer.multiply) {
     debugLogs ? console.log(chalk.yellow("multiply")) : null;
+
     ctx.globalCompositeOperation = "multiply";
     ctx.globalAlpha = .5;
     ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
-  }
-  else {
-    ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
+  } else {
+      ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
   }
   addAttributes(_renderObject);
 };
