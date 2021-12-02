@@ -35,6 +35,8 @@ const {
 } = require(path.join(basePath, "/src/config.js"));
 const canvas = createCanvas(format.width, format.height);
 const ctx = canvas.getContext("2d");
+const faceCanvas = createCanvas(format.width, format.height);
+const faceCtx = faceCanvas.getContext("2d");
 var metadataList = [];
 var attributesList = [];
 var dnaList = [];
@@ -91,16 +93,24 @@ const getElements = (path, layer) => {
       const extension = /\.[0-9a-zA-Z]+$/;
       const sublayer = !extension.test(i);
       const weight = getRarityWeight(i);
-      const save = /(-SAVE)/.test(i);
+      const saveFace = /(-SAVEFACE)/.test(i);
+      const saveEyes = /(-SAVEEYES)/.test(i);
       const multiply = /(-MULT)/.test(i);
-      const clip = /(-CLIP)/.test(i); // bool if
+      const clipFace = /(-CLIPFACE)/.test(i); // bool if
+      const clipEyes = /(-CLIPEYES)/.test(i); // bool if
+      const pickHair = /(-PICKHAIR)/.test(i);
+      const fillHair = /(-FILLHAIR)/.test(i);
       const blendMode = layer.blend != undefined ? layer.blend : "source-over";
       const opacity = layer.opacity != undefined ? layer.opacity : 1;
 
       const element = {
         multiply,
-        save,
-        clip,
+        saveFace,
+        clipFace,
+        saveEyes,
+        clipEyes,
+        pickHair,
+        fillHair,
         sublayer,
         weight,
         blendMode,
@@ -184,10 +194,17 @@ const genColor = () => {
   return pastel;
 };
 
+const genHairColor = () => {
+  let hue = Math.floor(Math.random() * 360);
+  let saturation = Math.floor(Math.random() * 65) + 5;
+  let lightness =  Math.floor(Math.random() * 85) + 15;
+  let hairColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  return hairColor;
+};
+
+let hairColor = genHairColor();
+
 const drawBackground = () => {
-  const layerCanvas = createCanvas(format.width, format.height);
-  const layerctx = layerCanvas.getContext("2d");
-  // First draw the canvas and mask the helmet
   ctx.globalCompositeOperation = "destination-over";
   ctx.fillStyle = genColor();
   ctx.fillRect(0, 0, format.width, format.height);
@@ -249,57 +266,101 @@ const loadLayerImg = async (_layer) => {
   });
 };
 
+let faceElement = {
+  multiply: false,
+  saveFace: true,
+  clipFace: false,
+  saveEyes: true,
+  clipEyes: false,
+  pickHair: false,
+  fillHair: false,
+  sublayer: false,
+  weight: 'required',
+  blendMode: 'source-over',
+  opacity: 1,
+  id: 0,
+  name: "",
+  filename: "",
+  path: ``,
+};
 
-const drawElement = async (_renderObject) => {
+let eyesElement = {
+  multiply: false,
+  saveFace: true,
+  clipFace: false,
+  saveEyes: true,
+  clipEyes: false,
+  pickHair: false,
+  fillHair: false,
+  sublayer: false,
+  weight: 'required',
+  blendMode: 'source-over',
+  opacity: 1,
+  id: 0,
+  name: "",
+  filename: "",
+  path: ``,
+};
+
+const drawElement = (_renderObject) => {
 
   ctx.globalAlpha = _renderObject.layer.opacity;
   ctx.globalCompositeOperation = _renderObject.layer.blendMode;
 
-  if (_renderObject.layer.save)  {
+  if (_renderObject.layer.saveFace)  {
     debugLogs ? console.log(chalk.green("save handler")) : null;
+    faceElement = _renderObject;
 
-    //Create a new Context
-    const tempLayerCanvas = createCanvas(format.width, format.height);
-    const temp = tempLayerCanvas.getContext("2d");
+  } else if (_renderObject.layer.clipFace) {
+      debugLogs ? console.log(chalk.cyan("clip handler")) : null;
+      console.log(faceElement);
+      //make a new context
+      const tempLayerCanvas = createCanvas(format.width, format.height);
+      const temp = tempLayerCanvas.getContext("2d");
+      //Draw the background then clip the masking layer
+      temp.drawImage(faceElement.loadedImage, 0, 0, format.width, format.height);
+      temp.globalCompositeOperation = "destination-in";
+      temp.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
 
-    //Draw the new canvas
-    temp.globalCompositeOperation = "source-over";
-    temp.drawImage( _renderObject.loadedImage, 0, 0, format.width, format.height);
+      ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
+  } else if (_renderObject.layer.saveEyes)  {
+      debugLogs ? console.log(chalk.green("save handler")) : null;
+      eyesElement = _renderObject;
 
-    //Save the image as _SavedImage_Face
-    if (debugLogs) {
-      fs.writeFileSync(
-        `${buildDir}/images/_SavedImage_Face${
-          outputJPEG ? ".jpg" : ".png"
-        }`,
-        tempLayerCanvas.toBuffer(`${outputJPEG ? "image/jpeg" : "image/png"}`)
-      );
-    }
-  } else if (_renderObject.layer.clip) {
-    debugLogs ? console.log(chalk.cyan("clip handler")) : null;
+  } else if (_renderObject.layer.clipEyes) {
+      debugLogs ? console.log(chalk.cyan("clip handler")) : null;
+      console.log(eyesElement);
+      //make a new context
+      const tempLayerCanvas = createCanvas(format.width, format.height);
+      const temp = tempLayerCanvas.getContext("2d");
+      //Draw the background then clip the masking layer
+      temp.drawImage(eyesElement.loadedImage, 0, 0, format.width, format.height);
+      temp.globalCompositeOperation = "destination-in";
+      temp.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
 
-    //Trying to turn the .png into an image for later use
-    let faceImage = await loadImage(`${buildDir}/images/_SavedImage_Face${
-      outputJPEG ? ".jpg" : ".png"
-    }`);
+      ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
+  } else if (_renderObject.layer.pickHair) {
+      debugLogs ? console.log(chalk.red("pick hair")) : null;
+      hairColor = genHairColor();
 
-    //Create a new Context
-    const tempLayerCanvas = createCanvas(format.width, format.height);
-    const temp = tempLayerCanvas.getContext("2d");
- 
-    //Draw the new canvas
-    temp.globalCompositeOperation = "source-over";
-    temp.drawImage(faceImage, 0, 0, format.width, format.height);
-    
-    ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
+  } else if (_renderObject.layer.fillHair) {
+      debugLogs ? console.log(chalk.red("fill hair")) : null;
+      //make a new context
+      const tempLayerCanvas = createCanvas(format.width, format.height);
+      const temp = tempLayerCanvas.getContext("2d");
+      temp.globalCompositeOperation = "destination-over";
+      temp.fillStyle = hairColor;
+      temp.fillRect(0, 0, format.width, format.height);
+      temp.globalCompositeOperation = "destination-in";
+      temp.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
+      ctx.drawImage(tempLayerCanvas, 0, 0, format.width, format.height);
 
-  } else if (_renderObject.layer.multiply) {
-    debugLogs ? console.log(chalk.yellow("multiply")) : null;
-
-    ctx.globalCompositeOperation = "multiply";
-    ctx.globalAlpha = .5;
-    ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
-  } else {
+  }  else if (_renderObject.layer.multiply) {
+      debugLogs ? console.log(chalk.yellow("multiply")) : null;
+      ctx.globalCompositeOperation = "multiply";
+      ctx.globalAlpha = .38;
+      ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
+  }else {
       ctx.drawImage(_renderObject.loadedImage, 0, 0, format.width, format.height);
   }
   addAttributes(_renderObject);

@@ -22,14 +22,16 @@ const hashImages = true;
 
 const layerConfigurations = [
    {
-    growEditionSizeTo: 3,
+    growEditionSizeTo: 7,
     namePrefix: "Pirates",
     layersOrder: [
+      { name: "HairColor"},
       { name: "Skin"},
-      // { name: "Pupils" },
+      { name: "Pupils" },
       { name: "Ears"},
       { name: "Head"  },
-      { name: "Eyes" },   
+      { name: "Eyes" },  
+      { name: "Hairstyle"}, 
     ],
   },
   // {
